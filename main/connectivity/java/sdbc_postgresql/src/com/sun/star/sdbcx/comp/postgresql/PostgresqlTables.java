@@ -23,24 +23,27 @@ package com.sun.star.sdbcx.comp.postgresql;
 
 import java.util.List;
 
+import org.apache.openoffice.comp.sdbc.dbtools.comphelper.CompHelper;
+import org.apache.openoffice.comp.sdbc.dbtools.sdbcx.OContainer;
+import org.apache.openoffice.comp.sdbc.dbtools.sdbcx.descriptors.SdbcxTableDescriptor;
+import org.apache.openoffice.comp.sdbc.dbtools.util.ComposeRule;
+import org.apache.openoffice.comp.sdbc.dbtools.util.DbTools;
+import org.apache.openoffice.comp.sdbc.dbtools.util.DbTools.NameComponents;
+import org.apache.openoffice.comp.sdbc.dbtools.util.PropertyIds;
+import org.apache.openoffice.comp.sdbc.dbtools.util.StandardSQLState;
+
 import com.sun.star.beans.UnknownPropertyException;
 import com.sun.star.beans.XPropertySet;
+import com.sun.star.container.ElementExistException;
+import com.sun.star.container.NoSuchElementException;
 import com.sun.star.lang.IllegalArgumentException;
-import com.sun.star.lang.IndexOutOfBoundsException;
 import com.sun.star.lang.WrappedTargetException;
 import com.sun.star.sdbc.SQLException;
 import com.sun.star.sdbc.XDatabaseMetaData;
 import com.sun.star.sdbc.XResultSet;
 import com.sun.star.sdbc.XRow;
 import com.sun.star.sdbc.XStatement;
-import com.sun.star.sdbcx.comp.postgresql.comphelper.CompHelper;
-import com.sun.star.sdbcx.comp.postgresql.sdbcx.OContainer;
-import com.sun.star.sdbcx.comp.postgresql.sdbcx.descriptors.SdbcxTableDescriptor;
-import com.sun.star.sdbcx.comp.postgresql.util.ComposeRule;
-import com.sun.star.sdbcx.comp.postgresql.util.DbTools;
-import com.sun.star.sdbcx.comp.postgresql.util.PropertyIds;
-import com.sun.star.sdbcx.comp.postgresql.util.StandardSQLState;
-import com.sun.star.sdbcx.comp.postgresql.util.DbTools.NameComponents;
+import com.sun.star.sdbcx.XDrop;
 import com.sun.star.uno.Any;
 import com.sun.star.uno.AnyConverter;
 import com.sun.star.uno.UnoRuntime;
@@ -49,7 +52,7 @@ public class PostgresqlTables extends OContainer {
     private XDatabaseMetaData metadata;
     private PostgresqlCatalog catalog;
     
-    public PostgresqlTables(Object lock, XDatabaseMetaData metadata, PostgresqlCatalog catalog, List<String> names) {
+    public PostgresqlTables(Object lock, XDatabaseMetaData metadata, PostgresqlCatalog catalog, List<String> names) throws ElementExistException {
         super(lock, true, names);
         this.metadata = metadata;
         this.catalog = catalog;
@@ -69,7 +72,7 @@ public class PostgresqlTables extends OContainer {
                 if (results.next()) {
                     String type = row.getString(4);
                     String remarks = row.getString(5);
-                    ret = PostgresqlTable.create(metadata.getConnection(), this, nameComponents.getTable(),
+                    ret = new PostgresqlTable(metadata.getConnection(), this, nameComponents.getTable(),
                             nameComponents.getCatalog(), nameComponents.getSchema(), remarks, type);
                 }
             }
@@ -95,7 +98,15 @@ public class PostgresqlTables extends OContainer {
             
             String composedName = DbTools.composeTableName(metadata, nameComponents.getCatalog(), nameComponents.getSchema(), nameComponents.getTable(),
                     true, ComposeRule.InDataManipulation);
-            String sql = String.format("DROP %s %s", isView ? "VIEW" : "TABLE", composedName);
+            if (isView) {
+                XDrop dropView = UnoRuntime.queryInterface(XDrop.class, catalog.getViews());
+                String unquotedName = DbTools.composeTableName(metadata, nameComponents.getCatalog(), nameComponents.getSchema(), nameComponents.getTable(),
+                        false, ComposeRule.InDataManipulation);
+                dropView.dropByName(unquotedName);
+                return;
+            }
+            
+            String sql = "DROP TABLE " + composedName;
             
             XStatement statement = null;
             try {
@@ -104,24 +115,19 @@ public class PostgresqlTables extends OContainer {
             } finally {
                 CompHelper.disposeComponent(statement);
             }
-            // FIXME: delete it from our views
-        } catch (IllegalArgumentException illegalArgumentException) {
-            throw new SQLException("Error", this, StandardSQLState.SQL_GENERAL_ERROR.text(), 0, illegalArgumentException);
-        } catch (UnknownPropertyException unknownPropertyException) {
-            throw new SQLException("Error", this, StandardSQLState.SQL_GENERAL_ERROR.text(), 0, unknownPropertyException);
-        } catch (WrappedTargetException wrappedTargetException) {
+        } catch (IllegalArgumentException | UnknownPropertyException | WrappedTargetException | NoSuchElementException wrappedTargetException) {
             throw new SQLException("Error", this, StandardSQLState.SQL_GENERAL_ERROR.text(), 0, wrappedTargetException);
         }
     }
 
     @Override
     public void impl_refresh() {
-        catalog.refreshTables();
+        catalog.refreshObjects();
     }
 
     @Override
     public XPropertySet createDescriptor() {
-        return SdbcxTableDescriptor.create(true);
+        return new SdbcxTableDescriptor(true);
     }
 
     @Override
@@ -136,14 +142,6 @@ public class PostgresqlTables extends OContainer {
             String sql = DbTools.createSqlCreateTableStatement(descriptor, metadata.getConnection(), null, "(M,D)");
             statement = metadata.getConnection().createStatement();
             statement.execute(sql);
-        } catch (IndexOutOfBoundsException indexOutOfBoundsException) {
-            throw new SQLException("Error", this, StandardSQLState.SQL_GENERAL_ERROR.text(), 0, indexOutOfBoundsException);
-        } catch (IllegalArgumentException illegalArgumentException) {
-            throw new SQLException("Error", this, StandardSQLState.SQL_GENERAL_ERROR.text(), 0, illegalArgumentException);
-        } catch (UnknownPropertyException unknownPropertyException) {
-            throw new SQLException("Error", this, StandardSQLState.SQL_GENERAL_ERROR.text(), 0, unknownPropertyException);
-        } catch (WrappedTargetException wrappedTargetException) {
-            throw new SQLException("Error", this, StandardSQLState.SQL_GENERAL_ERROR.text(), 0, wrappedTargetException);
         } finally {
             CompHelper.disposeComponent(statement);
         }

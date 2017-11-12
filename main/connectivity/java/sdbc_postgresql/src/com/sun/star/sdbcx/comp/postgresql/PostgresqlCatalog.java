@@ -24,12 +24,14 @@ package com.sun.star.sdbcx.comp.postgresql;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.openoffice.comp.sdbc.dbtools.comphelper.CompHelper;
+import org.apache.openoffice.comp.sdbc.dbtools.sdbcx.OCatalog;
+import org.apache.openoffice.comp.sdbc.dbtools.sdbcx.OContainer;
+
+import com.sun.star.container.ElementExistException;
 import com.sun.star.sdbc.SQLException;
 import com.sun.star.sdbc.XResultSet;
 import com.sun.star.sdbc.XRow;
-import com.sun.star.sdbcx.comp.postgresql.comphelper.CompHelper;
-import com.sun.star.sdbcx.comp.postgresql.sdbcx.OCatalog;
-import com.sun.star.sdbcx.comp.postgresql.sdbcx.OContainer;
 import com.sun.star.uno.Any;
 import com.sun.star.uno.UnoRuntime;
 
@@ -39,7 +41,7 @@ public class PostgresqlCatalog extends OCatalog {
     }
     
     @Override
-    public OContainer refreshTables() {
+    public void refreshTables() {
         XResultSet results = null;
         try {
             // Using { "VIEW", "TABLE", "%" } shows INFORMATION_SCHEMA and others, but it also shows indexes :-(
@@ -51,16 +53,20 @@ public class PostgresqlCatalog extends OCatalog {
                 System.out.println("Table " + name);
                 names.add(name);
             }
-            return new PostgresqlTables(lock, metadata, this, names);
-        } catch (SQLException sqlException) {
+            if (tables == null) {
+                tables = new PostgresqlTables(this, metadata, this, names);
+            } else {
+                tables.refill(names);
+            }
+        } catch (ElementExistException | SQLException exception) {
+            throw new com.sun.star.uno.RuntimeException("Error", exception);
         } finally {
             CompHelper.disposeComponent(results);
         }
-        return null;
     }
     
     @Override
-    public OContainer refreshViews() {
+    public void refreshViews() {
         XResultSet results = null;
         try {
             results = metadata.getTables(Any.VOID, "%", "%", new String[] { "VIEW" });
@@ -70,21 +76,27 @@ public class PostgresqlCatalog extends OCatalog {
                 String name = buildName(row);
                 names.add(name);
             }
-            return new PostgresqlTables(lock, metadata, this, names);
-        } catch (SQLException sqlException) {
+            if (views == null) {
+                views = new PostgresqlViews(this, metadata, this, names);
+            } else {
+                views.refill(names);
+            }
+        } catch (ElementExistException | SQLException exception) {
+            throw new com.sun.star.uno.RuntimeException("Error", exception);
         } finally {
             CompHelper.disposeComponent(results);
         }
-        return null;
     }
     
     @Override
-    public OContainer refreshGroups() {
-        return null;
+    public void refreshGroups() {
     }
     
     @Override
-    public OContainer refreshUsers() {
-        return null;
+    public void refreshUsers() {
+    }
+    
+    synchronized OContainer getTablesInternal() {
+        return tables;
     }
 }

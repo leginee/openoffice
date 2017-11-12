@@ -145,7 +145,7 @@ if (SYSTEM_JPEG != YES)
     URL1 = http://www.ijg.org/files/jpegsrc.v8d.tar.gz
     URL2 = $(OOO_EXTRAS)$(MD5)-$(name)
 
-if (SOLAR_JAVA==TRUE && ENABLE_MEDIAWIKI==YES)
+if (SOLAR_JAVA==TRUE)
     MD5 = 4c8c505cc3cba4c467c479e3e0f09ba4
     name = commons-lang3-3.3-src.tar.gz
     URL1 = http://archive.apache.org/dist/commons/lang/source/$(name)
@@ -200,9 +200,9 @@ if (ENABLE_MEDIAWIKI == YES)
     URL2 = $(OOO_EXTRAS)$(MD5)-$(name)
 
 if (SYSTEM_PYTHON != YES)
-    MD5 = 17add4bf0ad0ec2f08e0cae6d205c700
-    name = Python-2.7.13.tgz
-    URL1 = http://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz
+    MD5 = cee2e4b33ad3750da77b2e85f2f8b724
+    name = Python-2.7.14.tgz
+    URL1 = http://www.python.org/ftp/python/2.7.14/Python-2.7.14.tgz
     URL2 = $(OOO_EXTRAS)$(MD5)-$(name)
 
 if (SYSTEM_BOOST != YES)
@@ -337,3 +337,13 @@ if (ENABLE_CATEGORY_B==YES && SYSTEM_GRAPHITE!=YES && ENABLE_GRAPHITE==TRUE)
     name = silgraphite-2.3.1.tar.gz
     URL1 = https://sourceforge.net/projects/silgraphite/files/silgraphite/2.3.1/silgraphite-2.3.1.tar.gz
     URL2 = $(OOO_EXTRAS)$(MD5)-$(name)
+
+if (ENABLE_CATEGORY_B==YES && SYSTEM_CAIRO!=YES && ENABLE_CAIRO==TRUE)
+    MD5 = 4ea70ea87b47e92d318d4e7f5b940f47
+    name = cairo-1.8.0.tar.gz
+    URL1 = https://www.cairographics.org/releases/$(name)
+
+if (ENABLE_CATEGORY_B==YES && SYSTEM_CAIRO!=YES && ENABLE_CAIRO==TRUE)
+    MD5 = 09357cc74975b01714e00c5899ea1881
+    name = pixman-0.12.0.tar.gz
+    URL1 = https://www.cairographics.org/releases/$(name)

@@ -608,7 +608,7 @@ public:
 
     value_type get(difference_type const & d) const
     {
-        const int remainder( x(d.x) % num_intraword_positions );
+        const int remainder( (x-d.x) % num_intraword_positions );
 
         return (unsigned_cast<value_type>(*current(d.x,d.y) & 
                                           get_mask<value_type, bits_per_pixel, MsbFirst>(remainder))

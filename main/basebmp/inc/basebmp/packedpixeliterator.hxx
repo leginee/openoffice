@@ -37,6 +37,7 @@ namespace basebmp
 {
 
 /// Get bitmask for data at given intra-word position, for given bit depth
+// used in: packedpiceliterator.hxx & bmpdemo.cxx
 template< typename value_type, 
           int      bits_per_pixel, 
           bool     MsbFirst, 
@@ -56,6 +57,7 @@ inline value_type get_mask( difference_type d )
                                                          (d % nIntraWordPositions)));
 }
 
+//used in: packedpiceliterator.hxx & bmpdemo.cxx
 template< int num_intraword_positions, int bits_per_pixel, bool MsbFirst, typename difference_type > inline difference_type get_shift( difference_type remainder )
 {
     return bits_per_pixel*(MsbFirst ? 
@@ -63,6 +65,7 @@ template< int num_intraword_positions, int bits_per_pixel, bool MsbFirst, typena
                            remainder);
 }
 
+//used in: packedpiceliterator.hxx & bmpdemo.cxx
 template< typename Valuetype, 
           int      bits_per_pixel, 
           bool     MsbFirst > class PackedPixelColumnIterator : public NonStandardIterator
@@ -233,7 +236,7 @@ public:
         *y(d) = (*y(d) & ~mask_) | pixel_value;
     }
 };
-
+// used in: packedpixeliterator & bmpdemo
 template< typename Valuetype,           
           int      bits_per_pixel, 
           bool     MsbFirst > class PackedPixelRowIterator : public NonStandardIterator
@@ -480,6 +483,13 @@ public:
     one pixel into an machine data type (like one bit per pixel, eight
     of which packed into one char)
  */
+/* used in:
+ * packed pixel iterator
+ * greylevelformats
+ * paletteformats
+ * bmpdemo
+ * Package_inc.mk
+ */
 template< typename Valuetype,           
           int      bits_per_pixel, 
           bool     MsbFirst > class PackedPixelIterator : public NonStandardIterator
@@ -608,7 +618,7 @@ public:
 
     value_type get(difference_type const & d) const
     {
-        const int remainder( (x-d.x) % num_intraword_positions );
+        const int remainder( (x+d.x) % num_intraword_positions );
 
         return (unsigned_cast<value_type>(*current(d.x,d.y) & 
                                           get_mask<value_type, bits_per_pixel, MsbFirst>(remainder))
@@ -645,6 +655,7 @@ public:
 // partial specialization for the accessor traits masked_accessor
 // selector metafunction - can employ fast mask functor for the 1bpp
 // case.
+/* used in: accessortraits (has maybe own definition) & packedpixeliterator */
 template< class Accessor, 
           class MaskAccessor, 
           class Iterator,

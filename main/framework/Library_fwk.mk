@@ -190,4 +190,10 @@ $(eval $(call gb_Library_add_exception_objects,fwk,\
 	framework/source/xml/imagesdocumenthandler \
 ))
 
+# i126622 - Base 4.1.2 does not open Tables and Queries in Mac OSX
+ifeq ($(OS),MACOSX)
+    $(call gb_CxxObject_get_target,framework/source/loadenv/loadenv):\
+	T_CXXFLAGS := $(gb_LinkTarget_CXXFLAGS) $(gb_LinkTarget_EXCEPTIONFLAGS) $(gb_COMPILERNOOPTFLAGS)
+endif
+
 # vim: set noet sw=4 ts=4:

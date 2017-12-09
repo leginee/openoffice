@@ -143,8 +143,8 @@ AC_ARG_WITH(package-format,
                           Usage: --with-package-format="foo bar"
 ],,)                   
 AC_ARG_ENABLE(odk,
-[  --disable-odk           OO.o includes an ODK, office development kit
-                          which some packagers may with to build without
+[  --disable-odk           AOO includes an ODK, office development kit
+                          which some packagers may want to build without
 ],,enable_odk="yes")
 AC_ARG_ENABLE(mathmldtd,
 [  --disable-mathmldtd     disable mathmldtd
@@ -932,6 +932,11 @@ AC_ARG_WITH(arm-target,
 
                               Usage: --with-arm-target=7
 ],with_arm_target=$withval,with_arm_target=4)
+AC_ARG_WITH(macosx-target,
+[  --macosx-target            The minimal macOS/OSX deployment and build target
+
+                              Usage: --with-macosx-target=10.7
+],with_macosx_target=$withval,with_macosx_target=10.7)
 AC_ARG_WITH(rat-scan,
 [  --with-rat-scan         Scan source code for license headers.
                           Use as --with-rat-scan to automatically download pre-built Rat binaries.
@@ -984,6 +989,9 @@ dnl ===================================================================
 cat /dev/null > warn
 
 AC_PROG_EGREP
+if test -z "$GREP"; then
+GREP=$EGREP
+fi
 AC_PROG_AWK
 AC_PATH_PROG( AWK, $AWK)
 if test -z "$AWK"; then
@@ -1806,7 +1814,7 @@ dnl ===================================================================
 dnl Search all the common names for GNU make
 dnl ===================================================================
 AC_MSG_CHECKING([for GNU make])
-for a in "$MAKE" $GNUMAKE make gmake gnumake; do
+for a in "$MAKE" "$GNUMAKE" make gmake gnumake; do
       $a --version 2> /dev/null | $GREP GNU  2>&1 > /dev/null
       if test $? -eq 0;  then
            GNUMAKE=$a
@@ -3824,21 +3832,21 @@ AC_SUBST(LIBXML_LIBS)
 
 
 dnl ===================================================================
-dnl Checks for a MacOS platform SDK compatible with an OSX 10.9 deployment target
+dnl Checks for a MacOS platform SDK compatible with an OSX 10.7 deployment target
 dnl ===================================================================
 if test  "$_os" = "Darwin"; then
-   sdk_target=10.9
+   sdk_target=$with_macosx_target
    AC_MSG_CHECKING([checking SDK compatibility with OSX $sdk_target])
 
    sdk_minor=`echo $sdk_target | cut -d"." -f2`
 
-   if test "$sdk_minor" -lt "9"; then
-      AC_MSG_ERROR([SDK version < 10.9 is not longer supported])
+   if test "$sdk_minor" -lt "7"; then
+      AC_MSG_ERROR([SDK version < 10.7 is not longer supported])
    else
       MACOSX_DEPLOYMENT_TARGET=$sdk_target
 
       dnl Why not MacOSX10.9.sdk? It lacks Python.h (!?)
-      sdk_found=`xcodebuild -showsdks | $EGREP "sdk macosx10.(10|11)" | sed -e "s/.*sdk //" | head -n1`
+      sdk_found=`xcodebuild -showsdks | $EGREP "sdk macosx10.(7|8|10|11)" | sed -e "s/.*sdk //" | tail -n1`
       if test -z "$sdk_found"; then
          AC_MSG_ERROR([No SDK with OSX $sdk_target compatibility found])
       else

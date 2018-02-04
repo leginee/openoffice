@@ -1,0 +1,31 @@
+env = SetUpSharedLibraryEnvironment('fileacc', 'OOO')
+
+env.Prepend(CPPPATH = 'inc')
+AddAPI(env, [
+    'offapi',
+    'udkapi'
+])
+
+env.Append(CPPDEFINES = [ 'FILEACCESS_DLLIMPLEMENTATION' ])
+
+fileacc = env.SharedLibrary(
+    'fileacc',
+    ['source/FileAccess.cxx'],
+    LIBS = [
+        CPPULIB,
+        CPPUHELPERLIB,
+        SALLIB,
+        TOOLSLIB,
+        UCBHELPERLIB,
+        UNOTOOLSLIB
+    ] + STDLIBS
+)
+
+installLib = env.Install(OUTDIR + '/lib', fileacc)
+
+installXml = env.Install(OUTDIR + '/xml', 'source/fileacc.xml')
+
+env.Alias('install', [
+    installLib,
+    installXml
+])

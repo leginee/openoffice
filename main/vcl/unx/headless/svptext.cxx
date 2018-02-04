@@ -154,10 +154,12 @@ void SvpGlyphPeer::RemovingFont( ServerFont& )
 
 void SvpGlyphPeer::RemovingGlyph( ServerFont&, GlyphData& rGlyphData, sal_GlyphId /*aGlyphId*/ )
 {
-    if( rGlyphData.ExtDataRef().mpData != Format::NONE )
+	//TODO: Check if NULL is really right here. It was Format::None, but that is not as of specc.
+	//NULL did make sense in the context since we want to query for empty data.
+    if( rGlyphData.ExtDataRef().mpData != NULL &&  rGlyphData.ExtDataRef().mpData != Format::NONE)
     {
         // release the glyph related resources
-        DBG_ASSERT( (rGlyphData.ExtDataRef().meInfo <= Format::MAX), "SVP::RG() invalid alpha format" ); 
+        DBG_ASSERT( (rGlyphData.ExtDataRef().meInfo <= Format::MAX), "SVP::RG() invalid alpha format" );
         SvpGcpHelper* pGcpHelper = (SvpGcpHelper*)rGlyphData.ExtDataRef().mpData;
         delete[] pGcpHelper->maRawBitmap.mpBits;
         delete pGcpHelper;

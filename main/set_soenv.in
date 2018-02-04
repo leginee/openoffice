@@ -57,8 +57,8 @@ my ( $outfile, $outfile_sh, $outfile_bat, $bootfile, $newline, $comment,
      $compiler, $unsetenv, $setenv, $unset, $set, $ds, $ps,
      $wps, $cur_dir, $par_dir, $I, $L, $D, $buildenv, $answer, $tmp, $MINGW,
      $USE_MINGW, $platform,
-     $cygwinver, $empty, $no_ant, $no_stl, $no_gcc_include, 
-     $no_gxx_include, $warnfile, $Warning, $result, $unsetvars, $unsetvarssh, $unsetvarsbat, $exportvars, $win_format_var, $perl_os, @mingw_lib_include_paths, $mingw_lib_include_path);
+     $cygwinver, $empty, $no_ant, $no_stl,
+     $warnfile, $Warning, $result, $unsetvars, $unsetvarssh, $unsetvarsbat, $exportvars, $win_format_var, $perl_os, @mingw_lib_include_paths, $mingw_lib_include_path);
 #
 #-------------------------------------------------
 # IIb. Declaring environment values (constants).
@@ -359,7 +359,7 @@ elsif ( $platform =~ m/kfreebsd/ )
 elsif ( $platform =~ m/freebsd/ ) 
 {     $BIG_SVX        = "TRUE";
       $COM            = "@COM_IS@";
-      $COMPATH        = '@COMPATH@' . '/bin'; 
+      $COMPATH        = '@COMPATH@'; 
       $CVER           = "C300";
       $GUI            = "UNX";
       $GUIBASE        = "unx";
@@ -1118,8 +1118,7 @@ if ($platform =~ m/cygwin|os2/)
      
 # The general environment path.
 if ($platform =~ m/linux|netbsd|odf1|freebsd|aix|solaris/)
-{  $PATH              = $cur_dir.
-                        $ps.'$SOLARENV'.$ds.'$INPATH'.$BIN.
+{  $PATH              = '$SOLARENV'.$ds.'$INPATH'.$BIN.
                         $ps.'$SOLARENV'.$BIN;
 
    if ($platform =~ m/solaris/) {
@@ -1134,8 +1133,10 @@ if ($platform =~ m/linux|netbsd|odf1|freebsd|aix|solaris/)
    } else {
       @javaBits = (); 
    }
+   my $ccdir = "@CC_PATH@";
+   $ccdir =~ s/\/$//;
    $PATH              = GetCorrectPath ($PATH,
-                                        $COMPATH, $CC,
+                                        $ccdir, $CC,
                                         $PERL_PATH, 'perl',
                                         @javaBits);
 }
@@ -1147,8 +1148,7 @@ elsif ($platform =~ m/cygwin/)
 
    my ( $tmppath );
 
-   $PATH              = $cur_dir.
-                        $ps.CygFormat($SOLARENV).$ds."bin".
+   $PATH              = CygFormat($SOLARENV).$ds."bin".
                         $ps.CygFormat($SOLARENV).$ds.$INPATH.$BIN;
 
    if ( $JAVA_HOME ne "" )
@@ -1281,8 +1281,7 @@ elsif ($platform =~ m/os2/)
 {  # The PATH variable is completely created from scratch. Everything that is not
    # needed is appended to the end.
 
-   $PATH              = $cur_dir.
-                        $ps.'$SOLARENV'.$ds."bin".
+   $PATH              = '$SOLARENV'.$ds."bin".
                         $ps.'$SOLARENV'.$ds.'$INPATH'.$BIN;
 
    if ( $JAVA_HOME ne "" )
@@ -1313,8 +1312,7 @@ elsif ($platform =~ m/os2/)
 }
 
 elsif ($platform =~ m/darwin/)
-{  $PATH              = $cur_dir.
-                        $ps.'$SOLARENV'.$ds.'$INPATH'.$BIN.
+{  $PATH              = '$SOLARENV'.$ds.'$INPATH'.$BIN.
                         $ps.'$SOLARENV'.$BIN;
 
   # Append old PATH
@@ -1432,7 +1430,9 @@ if ($platform =~ m/linux/)
 	}
     #The tail, if needed
     if ($platform =~ m/linux|freebsd|netbsd/)
-    {  $SOLARINC  .= $I.$XINC;
+    {  if ($XINC ne $USR.$INCLUDE)
+       { $SOLARINC  .= $I.$XINC;
+       }
     }
     elsif ($platform =~ m/osf1/)
     {  $SOLARINC  .= $I.$XINC.
@@ -1472,8 +1472,7 @@ elsif ($platform =~ m/cygwin/)
               $SOLARINC   .= $I.PathFormat($mingw_lib_include_path);
            }
        }
-     $SOLARINC .= $I.PathFormat("@GXX_INCLUDE_PATH@").$I.PathFormat("@GXX_INCLUDE_PATH@".$ds."mingw32").
-                  $I.'$PSDK_HOME'.$INCLUDE;
+     $SOLARINC .= $I.'$PSDK_HOME'.$INCLUDE;
    }
    if ( '@ENABLE_DIRECTX@' ne "" ) {
        $SOLARINC   .= $I.PathFormat('@DIRECTXSDK_HOME@').$INCLUDE;
@@ -1613,9 +1612,13 @@ ToFile( "NO_BSYMBOLIC",      $NO_BSYMBOLIC,      "e" );
 ToFile( "TF_FILTER",         "TRUE",             "e" );
 if ("@ENABLE_DEBUG@" eq "TRUE") {
 ToFile( "debug",             "true",             "e" );
+} else {
+ToFile( "debug",             "",                 "e" );
 }
 if ("@ENABLE_WERROR@" eq "FALSE") {
 ToFile( "EXTERNAL_WARNINGS_NOT_ERRORS", "TRUE",  "e" );
+} else {
+ToFile( "EXTERNAL_WARNINGS_NOT_ERRORS", "",      "e" );
 }
 ToFile( "PRODUCT",           "@PRODUCT@",        "e" );
 ToFile( "PROFULLSWITCH",     "@PROFULLSWITCH@",  "e" );
@@ -1996,7 +1999,6 @@ ToFile( "NEW_SHADOW_API",    "@NEW_SHADOW_API@",   "e" );
 ToFile( "PAM_LINK",          "@PAM_LINK@",         "e" );
 ToFile( "CRYPT_LINK",        "@CRYPT_LINK@",       "e" );
 ToFile( "XAU_LIBS",          "@XAU_LIBS@",         "e" );
-ToFile( "GXX_INCLUDE_PATH",  PathFormat("@GXX_INCLUDE_PATH@"), "e" );
 ToFile( "COMMON_BUILD_TOOLS",$COMMON_BUILD_TOOLS,  "e" );
 if ($platform !~ m/cygwin|os2/) {
    if ( !defined $ENV{"TMPDIR"} || $ENV{"TMPDIR"} eq "" ) {

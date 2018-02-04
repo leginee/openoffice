@@ -60,7 +60,6 @@ gb_COMPILERDEFS := \
 	-D$(COM) \
 	-DHAVE_GCC_VISIBILITY_FEATURE \
 	-DCPPU_ENV=$(COMID) \
-	-DGXX_INCLUDE_PATH=$(GXX_INCLUDE_PATH) \
 
 ifeq ($(CPUNAME),POWERPC)
 gb_CPUDEFS := -DPOWERPC -DPPC
@@ -150,8 +149,10 @@ endif
 
 ifeq ($(gb_DEBUGLEVEL),2)
 gb_COMPILEROPTFLAGS := -O0
+gb_COMPILEROPT1FLAGS := -O0
 else
 gb_COMPILEROPTFLAGS := -O2
+gb_COMPILEROPT1FLAGS := -O1
 endif
 
 gb_COMPILERNOOPTFLAGS := -O0
@@ -184,6 +185,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CC) \
 		$(DEFS) \
 		$(T_CFLAGS) \
+		$(CFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-MMD -MT $(1) \
@@ -203,6 +205,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CXX) \
 		$(DEFS) \
 		$(T_CXXFLAGS) \
+		$(CXXFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-MMD -MT $(1) \
@@ -221,6 +224,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CXX) \
 		$(DEFS) \
 		$(T_OBJCXXFLAGS) \
+		$(OBJCXXFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-MMD -MT $(1) \

@@ -56,15 +56,10 @@ gb_OSDEFS := \
 	-DUNX \
 	$(PTHREAD_CFLAGS) \
 
-ifeq ($(GXX_INCLUDE_PATH),)
-GXX_INCLUDE_PATH=$(COMPATH)/include/c++/$(shell gcc -dumpversion)
-endif
-
 gb_COMPILERDEFS := \
 	-D$(COM) \
 	-DHAVE_GCC_VISIBILITY_FEATURE \
 	-DCPPU_ENV=gcc3 \
-	-DGXX_INCLUDE_PATH=$(GXX_INCLUDE_PATH) \
 
 ifeq ($(CPUNAME),X86_64)
 gb_CPUDEFS := -D$(CPUNAME)
@@ -152,8 +147,10 @@ endif
 
 ifeq ($(gb_DEBUGLEVEL),2)
 gb_COMPILEROPTFLAGS := -O0
+gb_COMPILEROPT1FLAGS := -O0
 else
 gb_COMPILEROPTFLAGS := -Os
+gb_COMPILEROPT1FLAGS := -O1
 endif
 
 gb_COMPILERNOOPTFLAGS := -O0
@@ -179,6 +176,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CC) \
 		$(DEFS) \
 		$(T_CFLAGS) \
+		$(CFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-MMD -MT $(1) \
@@ -204,6 +202,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CXX) \
 		$(DEFS) \
 		$(T_CXXFLAGS) \
+		$(CXXFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-MMD -MT $(1) \

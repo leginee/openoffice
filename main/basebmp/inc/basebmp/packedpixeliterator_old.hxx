@@ -38,15 +38,20 @@ namespace basebmp
 
 template <typename VALUETYPE> class packedPixel {
 public:
-	packedPixel( unsigned int bitsPerPixel,bool MsbFirst){
+	packedPixel(){
+		SetnIntraWordPositions();
+	}
+	//copy constructor
+	packedPixel( const packedPixel & copyPixel) {
+		SetPackedPixel(copyPixel->getValue(),copyPixel->getPerPixel(),copyPixel->getMSBFirst());
+	}
+	void SetPackedPixel(VALUETYPE value, unsigned int bitsPerPixel,bool MsbFirst) {
 		BOOST_STATIC_ASSERT(sizeof(value_type)*8 % bits_per_pixel == 0);
 		BOOST_STATIC_ASSERT(sizeof(value_type)*8 / bits_per_pixel > 1);
 		BOOST_STATIC_ASSERT(vigra::TypeTraits<value_type>::isPOD::asBool);
 		msb_first = MsbFirst;
-		bits_per_pixel = bitsPerPixel;
-		bit_mask = (~(~0u << bits_per_pixel));
-		nIntraWordPositions = sizeof(value_type)*8 / bits_per_pixel;
-
+		SetBit(bitsPerPixel);
+		value_type = value;
 	}
 	VALUETYPE Get_mask(VALUETYPE differenceType) {
 		return Get_shift(differenceType % nIntraWordPositions);
@@ -57,53 +62,61 @@ public:
 	VALUETYPE Get_Shift(vigra::Diff2D differenceType) {
 		return bit_mask << bits_per_pixel* get_position(msb_first, (VALUETYPE) differenceType);
 	}
+	VALUETYPE getValue() {
+		return value_type;
+	}
+	int getPerPixel(){
+	return bits_per_pixel;
+	}
+	bool getMSBFirst() {
+		return msb_first;
+	}
+
+	bool operator==(packedPixel & rhs)
+	    {
+	        return value_type == rhs.getValue();
+	    }
+	bool operator!=(packedPixel & rhs) {
+		return value_type != rhs.getValue();
+	}
+	/*TODO: sollte eigentlich packedPixel zurückgeben*/
+	VALUETYPE operator+(packedPixel & rhs){
+		return value_type + rhs.value_type;
+	}
+
+	/*TODO: sollte eigentlich packedPixel zurückgeben*/
+	VALUETYPE operator-(packedPixel & rhs){
+
+		return value_type - rhs.value_type;
+	}
+
+	/*TODO: brauch eine Funktion die entsprechend Konvertiert rechnet.*/
+    packedPixel operator+=(vigra::Diff2D difference_type)
+    {
+        return *this += (VALUETYPE)difference_type;
+    }
+
 private:
 	VALUETYPE value_type;
-	const int bits_per_pixel;
-	const bool msb_first;
-	const int bit_mask;
-	const unsigned int nIntraWordPositions;
+	const int bits_per_pixel =1;
+	const bool msb_first = 0;
+	const int bit_mask = 0;
+	const unsigned int nIntraWordPositions = 0;
 
 	VALUETYPE get_position(bool MsbFirst, VALUETYPE reminder){
 		return (MsbFirst ?
                 (nIntraWordPositions-1 - reminder) :
                 reminder);
 	}
+	void SetnIntraWordPositions()  {
+		nIntraWordPositions = sizeof(value_type)*8 / bits_per_pixel;
+	}
+	void SetBit(unsigned int bitsPerPixel) {
+		bits_per_pixel = bitsPerPixel;
+		bit_mask = (~(~0u << bits_per_pixel));
+	}
 
 };
-/// Get bitmask for data at given intra-word position, for given bit depth
-// used in: packedpiceliterator.hxx & bmpdemo.cxx
-/*get_mask*/
-template< typename value_type, 
-          int      bits_per_pixel, 
-          bool     MsbFirst, 
-          typename difference_type > 
-inline value_type get_mask( difference_type d )
-{
-    BOOST_STATIC_ASSERT(bits_per_pixel > 0);
-    BOOST_STATIC_ASSERT(sizeof(value_type)*8 % bits_per_pixel == 0);
-    BOOST_STATIC_ASSERT(sizeof(value_type)*8 / bits_per_pixel > 1);
-    BOOST_STATIC_ASSERT(vigra::TypeTraits<value_type>::isPOD::asBool);
-
-    const unsigned int nIntraWordPositions( sizeof(value_type)*8 / bits_per_pixel );
-
-    //      create bits_per_pixel 1s      shift to intra-word position
-    return ((~(~0u << bits_per_pixel)) << bits_per_pixel*(MsbFirst ? 
-                                                         (nIntraWordPositions-1 - (d % nIntraWordPositions)) : 
-                                                         (d % nIntraWordPositions)));
-}
-
-//used in: packedpiceliterator.hxx & bmpdemo.cxx
-template< int num_intraword_positions,
-          int bits_per_pixel,
-		  bool MsbFirst,
-		  typename difference_type >
-inline difference_type get_shift( difference_type remainder )
-{
-    return bits_per_pixel*(MsbFirst ? 
-                           (num_intraword_positions - 1 - remainder) :
-                           remainder);
-}
 
 //used in: packedpiceliterator.hxx & bmpdemo.cxx
 template< typename Valuetype, 
@@ -532,7 +545,8 @@ public:
  */
 template< typename Valuetype,           
           int      bits_per_pixel, 
-          bool     MsbFirst > class PackedPixelIterator : public NonStandardIterator
+          bool     MsbFirst >
+class PackedPixelIterator : public NonStandardIterator
 {
 public:
     // no reference, no index_reference type here
@@ -546,9 +560,9 @@ public:
                                       bits_per_pixel, 
                                       MsbFirst>         column_iterator;
 
-    typedef value_type*                                 pointer;
-    typedef int                                         MoveX;
-    typedef StridedArrayIterator< value_type >          MoveY;
+    typedef value_type*                                 	pointer;
+    typedef packedPixel<int>                              	MoveX;
+    typedef StridedArrayIterator< packedPixel<value_type>>  MoveY;
 
     enum {
         /** The number of pixel within a single value_type value
@@ -558,7 +572,6 @@ public:
          */
         bit_mask=~(~0u << bits_per_pixel)
     };
-
     // TODO(F2): direction of iteration (ImageIterator can be made to
     // run backwards)
 
@@ -579,15 +592,16 @@ private:
     }
 
 public:
-    PackedPixelIterator() :
-        x(0),
-        y(0)
-    {}
+    PackedPixelIterator()
+    {   x(0,1);
+        y(0,1);
+    }
 
-    PackedPixelIterator(pointer base, int ystride) :
-        x(0),
-        y(ystride,base)
-    {}
+    PackedPixelIterator(pointer base, int ystride)
+    {
+        x(0,1);
+         y(ystride,base);
+    }
 
     bool operator==(PackedPixelIterator const & rhs) const
     {

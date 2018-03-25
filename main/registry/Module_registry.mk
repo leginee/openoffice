@@ -21,17 +21,18 @@
 
 
 
-PRJ = ..
-PRJNAME = jvmaccess
-TARGET = $(PRJNAME)
+$(eval $(call gb_Module_Module,registry))
 
-ENABLE_EXCEPTIONS = TRUE
+$(eval $(call gb_Module_add_targets,registry,\
+	Library_reg \
+	Executable_regmerge \
+	Executable_regview \
+	Executable_regcompare \
+	Executable_checksingleton \
+	Package_inc \
+))
 
-.INCLUDE: settings.mk
+#	Executable_rdbedit \
 
-SLOFILES = \
-    $(SLO)$/classpath.obj \
-    $(SLO)$/unovirtualmachine.obj \
-    $(SLO)$/virtualmachine.obj
 
-.INCLUDE: target.mk
+# vim: set noet sw=4 ts=4:

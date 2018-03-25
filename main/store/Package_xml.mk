@@ -1,4 +1,4 @@
-#**************************************************************
+###############################################################
 #  
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -17,33 +17,10 @@
 #  specific language governing permissions and limitations
 #  under the License.
 #  
-#**************************************************************
+###############################################################
 
 
 
-PRJ=..
+$(eval $(call gb_Package_Package,store_xml,$(SRCDIR)/store/util))
 
-PRJNAME=registry
-TARGET=regcpp
-
-ENABLE_EXCEPTIONS := TRUE
-
-# --- Settings -----------------------------------------------------
-
-.INCLUDE :  settings.mk
-.INCLUDE : ..$/version.mk
-
-# ------------------------------------------------------------------
-
-SLOFILES= \
-			$(SLO)$/regimpl.obj		\
-			$(SLO)$/regkey.obj		\
-			$(SLO)$/registry.obj 	\
-			$(SLO)$/keyimpl.obj 	\
-			$(SLO)$/reflread.obj	\
-			$(SLO)$/reflwrit.obj
-
-# ------------------------------------------------------------------
-
-.INCLUDE :  target.mk
-
+$(eval $(call gb_Package_add_file,store_xml,xml/store.xml,store.xml))

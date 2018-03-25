@@ -271,6 +271,12 @@ AC_ARG_ENABLE(cl-standard,
                           options and therefore removes a lot of warnings when
                           using the cheaper standard compiler. )
 ],,)
+AC_ARG_ENABLE(win64,
+[  --enable-win64          Enable building 64 bit OpenOffice on 64 bit Windows, (as
+                          opposed to 32 bit OpenOffice that is usually built there).
+                          This is a temporary option during the transition,
+                          as 64 bit OpenOffice doesn't fully build on Windows yet.
+],,enable_win64=no)
 AC_ARG_ENABLE(win-x64-shellext,
 [  --enable-win-x64-shellext    Enable the build/usage of Windows 64bit shell extensions.
                           These extensions are used for the system integration on
@@ -642,12 +648,6 @@ AC_ARG_WITH(jdk-home,
                           but the location of the entire distribution.
  
                           Usage: --with-jdk-home=<absolute path to JDK home>
-],,)
-AC_ARG_WITH(gxx_include_path,
-[  --with-gxx-include-path if you want to override the autodetected g++ include
-                          path.
- 
-                          Usage: --with-gxx-include-path=<absolute path to g++ include dir>
 ],,)
 AC_ARG_WITH(java,
 [  --with-java             Build with[[out]] Java support.  If you use
@@ -1170,6 +1170,7 @@ case "$build_os" in
 		test_gtk=no
 		test_freetype=no
         	test_gstreamer=no
+		test_cairo=yes
 		_os=OS2
 		;;
 	freebsd*)
@@ -1289,6 +1290,30 @@ if test "$_os" = "WINNT"; then
       AC_MSG_RESULT([yes])
    fi
    AC_SUBST(BUILD_X64)
+
+   dnl ===================================================================
+   dnl Set the BUILD_WIN64 variable. 
+   dnl ===================================================================
+   AC_MSG_CHECKING([whether to build 64 bit OpenOffice on 64 bit Windows])
+   if test "$build_cpu" = "x86_64" ; then
+      if test "x$enable_win64" != "xno" ; then
+         BUILD_WIN64="TRUE"
+         AC_MSG_RESULT([yes])
+         OOWINTOOL="./oowintool"
+      else
+         BUILD_WIN64=""
+         AC_MSG_RESULT([no])
+         OOWINTOOL="./oowintool --aoo32-on-win64"
+      fi
+   else
+      if test "x$enable_win64" != "xno" ; then
+         AC_MSG_ERROR([the --enable-win64 option can only be used on an AMD64 CPU])
+      fi
+      BUILD_WIN64=""
+      AC_MSG_RESULT([no])
+      OOWINTOOL="./oowintool"
+   fi
+   AC_SUBST(BUILD_WIN64)
 fi
 
 dnl ===================================================================
@@ -1703,29 +1728,6 @@ if test "$_os" != "WINNT" -o "$WITH_MINGWIN" = "yes"; then
    AC_PROG_CC
 fi
 
-dnl Clang detection on supported platforms
-if test "$_os" = "Linux" -o "$_os" = "FreeBSD"; then
-    if $CC --version 2>&1 | $GREP clang > /dev/null ; then
-        COM_IS=CLANG
-    else
-        COM_IS=GCC
-    fi
-    AC_SUBST(COM_IS)
-fi
-
-if test "$_os" = "FreeBSD"; then
-    FBSD_GCC_RPATH=
-    if "$COM_IS" = "GCC"; then
-        rpath=`$CC --print-file-name libstdc++.so`
-        rpath=`realpath $rpath`
-        rpath=`dirname $rpath`
-	if test "$rpath" != "/usr/lib" ; then
-            FBSD_GCC_RPATH="-Wl,-rpath=$rpath"
-	fi
-    fi
-    AC_SUBST(FBSD_GCC_RPATH)
-fi
-
 COMPATH=`dirname "$CC"`
 if test "$COMPATH" = "." ; then
     AC_PATH_PROGS(COMPATH, $CC)
@@ -2073,7 +2075,7 @@ if test "$_os" = "WINNT"; then
 		AC_MSG_CHECKING([for friendly registry keys])
 		# VS.Net 2003, VS.Net 2005
 		if test -z "$with_cl_home"; then
-			vctest=`./oowintool --msvc-productdir`;
+			vctest=`$OOWINTOOL --msvc-productdir`;
 			if test -x "$vctest/bin/cl.exe"; then
 				with_cl_home=$vctest;
 			fi
@@ -2121,18 +2123,31 @@ if test "$_os" = "WINNT"; then
 		PATH="$MSPDB_PATH:$PATH"
 
 		AC_MSG_CHECKING([the Microsoft C/C++ Compiler])
-   		if test -x "$with_cl_home/bin/cl.exe"; then
-   			CC="$with_cl_home/bin/cl.exe"
-   		else
-   			AC_PATH_PROG(CC, cl.exe)
-   		fi
-  		if test -e "$CC"; then
+		case "$build_cpu" in
+		  i?86)
+		    cl_subdirectory="bin"
+		    ;;
+		  x86_64)
+		    if test "$BUILD_WIN64" = "TRUE" ; then
+		      cl_subdirectory="bin/amd64"
+		    else
+		      cl_subdirectory="bin"
+		    fi
+		    ;;
+		  *)
+		    AC_MSG_ERROR([Unknown/unsupported Windows CPU $build_cpu.])
+		    ;;
+		esac
+   		if test -x "$with_cl_home/$cl_subdirectory/cl.exe"; then
+   			CC="$with_cl_home/$cl_subdirectory/cl.exe"
+			COMPATH="$with_cl_home"
 			# This gives us a posix path with 8.3 filename restrictions
 			CC=`cygpath -d "$CC"`
 			CC=`cygpath -u "$CC"`
+			COMPATH=`cygpath -d "$COMPATH"`
+			COMPATH=`cygpath -u "$COMPATH"`
 			# Remove /cl.exe from CC case insensitive
 			AC_MSG_RESULT([found ($CC)])
-			COMPATH=`echo $CC | $SED 's@\/[[Bb]][[Ii]][[Nn]]\/[[cC]][[lL]]\.[[eE]][[xX]][[eE]]@@'`
 			export INCLUDE=`cygpath -d "$COMPATH/Include"`
 			dnl  Check which Microsoft C/C++ compiler is found
 			AC_MSG_CHECKING([the Version of Microsoft C/C++ Compiler])
@@ -2155,7 +2170,7 @@ dnl      The following find microsoft, matches nn.nn.nnnn then pulls numbers out
 				AC_MSG_ERROR([Compiler too old. Use Microsoft C/C++ .NET 2008.])
 			fi
 		else
-			AC_MSG_ERROR([Microsoft C/C++ Compiler not found. Use --with-cl-home or set path to cl.exe.])
+			AC_MSG_ERROR([Microsoft C/C++ Compiler not found. Use --with-cl-home.])
 		fi
 	else
 		AC_MSG_CHECKING([the Mingwin32 C++ Compiler])
@@ -2174,6 +2189,119 @@ fi
 AC_SUBST(COMEX)
 AC_SUBST(MSPDB_PATH)
 AC_SUBST(USE_MINGW)
+
+dnl Compiler detection, logic from setsoenv.in
+case "$build_os" in
+	*cygwin*)
+		if test "$WITH_MINGWIN" = "yes"; then
+			COM="GCC";
+		else
+			COM="MSC";
+		fi;;
+	os2*)
+		COM="GCC";;
+	netbsd | kfreebsd* | freebsd* | linux* | darwin* )
+		if $CC --version 2>&1 | $GREP clang > /dev/null ; then
+			COM="CLANG";
+		else
+			COM="GCC";
+		fi;;
+	solaris*)
+		case "$CC" in
+			*gcc*)	COM="GCC";;
+			*)	COM="C52";;
+		esac;;
+	osf | aix*)
+		COM="CXX";;
+	*) AC_MSG_ERROR([Unable to decipher compiler for $build_os]);;
+esac
+AC_SUBST(COM)
+
+dnl  Decode the compiler version.  Logic from main/solenv/inc/tg_compv.mk.
+case $COM in
+	GCC)
+		CCVER=`${CC} -dumpversion 2>&1`;
+		CCNUMVER=`echo ${CCVER} | $AWK -v num=true -f ${_solenv}/bin/getcompver.awk`;
+		if test "${CCNUMVER}" -ge 000300000001; then
+			COMID="gcc3";
+			COMNAME="gcc3";
+		elif test "${CCNUMVER}" -ge 000300000001; then
+			COMID="GCC";
+			COMNAME="gcc2";
+		else
+			AC_MSG_ERROR([gcc too old]);
+		fi
+		;;
+	CLANG)
+		CCVER=`${CC} --version 2>&1 | head -n1 | sed -e"s/.*version //" -e"s/ .*//"`;
+		CCNUMVER=`echo ${CCVER} | $AWK -v num=true -f ${_solenv}/bin/getcompver.awk`;
+		# The version in tg_compv.mk for darwin does not look correct
+		# CCNUMVER = `echo ${CCVER} | sed -e"s/\.//";
+		case "$build_os" in
+			darwin*) # Mac OS X
+				COMID="s5abi";
+				COMNAME="s5abi";
+				;;
+			*)
+				COMID="gcc3";
+				COMNAME="gcc3";
+				;;
+		esac
+		;;
+	MSC)
+		CCVER=`${CC} 2>&1 | $AWK -f ${_solenv}/bin/getcompver.awk`;
+		CCNUMVER=`${CC} 2>&1 | $AWK -v num=true -f ${_solenv}/bin/getcompver.awk`;
+		if test "${CCNUMVER}" -ge 001200000000; then
+			COMID="MSC";
+			case "$build_cpu" in
+			  i?86)
+			    COMNAME="msci";
+			    ;;
+			  x86_64)
+			    if test "$BUILD_WIN64" = "TRUE" ; then
+			      COMNAME="mscx";
+			    else
+			      COMNAME="msci";
+			    fi
+			    ;;
+			  *)
+			    AC_MSG_ERROR([Unknown/unsupported Windows CPU $build_cpu.])
+			    ;;
+			esac
+		else
+			AC_MSG_ERROR([MSC compiler too old]);
+		fi
+		;;
+	C55 | C54 | C52 | C40 | sunpro)
+		CCVER=`${CC} -V 2>&1 | $AWK -f ${_solenv}/bin/getcompver.awk`;
+		CCNUMVER=`${CC} -V 2>&1 | $AWK -v num=true -f ${_solenv}/bin/getcompver.awk`;
+		if test "${CCNUMVER}" -ge 00050002; then
+			COMID="C52";
+			COMNAME="sunpro5";
+		else
+			AC_MSG_ERROR([Sun compiler too old]);
+		fi
+		;;
+	*)
+		AC_MSG_ERROR([Unable to detect compiler version]);;
+esac
+AC_SUBST(CCVER)
+AC_SUBST(CCNUMVER)
+AC_SUBST(COMID)
+AC_SUBST(COMNAME)
+
+if test "$_os" = "FreeBSD"; then
+    FBSD_GCC_RPATH=
+    if "$COM" = "GCC"; then
+        rpath=`$CC --print-file-name libstdc++.so`
+        rpath=`realpath $rpath`
+        rpath=`dirname $rpath`
+	if test "$rpath" != "/usr/lib" ; then
+            FBSD_GCC_RPATH="-Wl,-rpath=$rpath"
+	fi
+    fi
+    AC_SUBST(FBSD_GCC_RPATH)
+fi
 
 dnl ===================================================================
 dnl  .NET needs special treatment
@@ -2195,13 +2323,13 @@ if test "$WITH_MINGWIN" = "yes" || test "$COMEX" -ge "10"; then
 		MIDL_PATH="$with_cl_home/../Common7/Tools/Bin"
 	fi
 	if test -z "$MIDL_PATH" ; then
-      vstest=`./oowintool --msvs-productdir`;
+      vstest=`$OOWINTOOL --msvs-productdir`;
       if test -x "$vstest/Common7/Tools/Bin/midl.exe" ; then
 		  MIDL_PATH="$vstest/Common7/Tools/Bin"
       fi
 	fi
 	if test -z "$MIDL_PATH" ; then
-		psdktest=`./oowintool --psdk-home`
+		psdktest=`$OOWINTOOL --psdk-home`
 		if test -x "$psdktest/Bin/midl.exe" ; then
 			MIDL_PATH="$psdktest/Bin"
 		fi
@@ -2224,7 +2352,7 @@ if test "$WITH_MINGWIN" = "yes" || test "$COMEX" -ge "10"; then
 	if test -x "$with_csc_path/csc.exe"; then
 		CSC_PATH="$with_csc_path"
 	else
-	   csctest=`./oowintool --csc-compilerdir`;
+	   csctest=`$OOWINTOOL --csc-compilerdir`;
 	   if test -x "$csctest/csc.exe"; then
 	      CSC_PATH="$csctest"
 	   fi
@@ -2249,11 +2377,11 @@ if test "$WITH_MINGWIN" = "yes" || test "$COMEX" -ge "10"; then
 		    FRAME_HOME="$with_cl_home/../SDK/v1.1"
 	    fi
 	    if test -z "$FRAME_HOME" ; then
-          frametest=`./oowintool --dotnetsdk-dir`
+          frametest=`$OOWINTOOL --dotnetsdk-dir`
           if test -f "$frametest/lib/mscoree.lib"; then
              FRAME_HOME="$frametest"
           else
-             frametest=`./oowintool --psdk-home`
+             frametest=`$OOWINTOOL --psdk-home`
              if test -f "$frametest/lib/mscoree.lib"; then
                 FRAME_HOME="$frametest"
              fi
@@ -2448,39 +2576,6 @@ main (void)
 ],[AC_MSG_ERROR([your version of the GNU C++ compile has a bug which prevents Apache OpenOffice from being compiled correctly - please check http://gcc.gnu.org/ml/gcc-patches/2004-07/msg00968.html for details.])], [AC_MSG_RESULT([no])])
    fi
 fi
-
-dnl ===================================================================
-dnl Set the gcc/gxx include directories
-dnl ===================================================================
-# Removed the special FreeBSD treatment. The problem was that with_gxx_include_path
-# often contains an i386 which is expanded as a macro.
-if test "$GXX" = "yes" -a "$_os" != "Darwin"; then
-   AC_MSG_CHECKING([for g++ include path])
-   if test -z "$with_gxx_include_path"; then
-      with_gxx_include_path=`echo "#include <cstring>" | $CXX -E -xc++ - | $SED -n '/.*1*"\(.*\)\/cstring".*/s//\1/p' | head -n 1`
-      if test "$with_gxx_include_path" = "/usr/libexec/(null)/include"; then
-          with_gxx_include_path="/usr/include"
-      fi
-      if test "$WITH_MINGWIN" = "yes"; then
-         with_gxx_include_path=`cygpath -d "$with_gxx_include_path"`
-         with_gxx_include_path=`cygpath -u "$with_gxx_include_path"`
-      fi
-      if echo $with_gxx_include_path | $GREP -q linux; then
-         # workaround for Mandriva - issue 100049
-         with_gxx_include_path=`cd $with_gxx_include_path && pwd`
-      fi
-   fi
-fi
-dnl This is the original code...
-dnl with_gxx_include_path=`$CXX -print-search-dirs | $GREP instal |$AWK '{ print \$2 }'`/include 
-if test -z "$with_gxx_include_path"; then
-   with_gxx_include_path="NO_GXX_INCLUDE"
-   AC_MSG_RESULT([no g++ includes])
-else
-   AC_MSG_RESULT([$with_gxx_include_path])
-fi
-GXX_INCLUDE_PATH="$with_gxx_include_path"
-AC_SUBST(GXX_INCLUDE_PATH)
 
 dnl ===================================================================
 dnl Set the mingw runtime library include directories
@@ -2871,7 +2966,7 @@ fi
 
 if test "$_os" = "WINNT"; then
    if test -z "$with_jdk_home"; then
-      _jdk_home=`./oowintool --jdk-home`
+      _jdk_home=`$OOWINTOOL --jdk-home`
        if test -d "$_jdk_home"; then
           with_jdk_home="$_jdk_home"
        fi
@@ -5183,7 +5278,7 @@ if test \( "$_os" = "WINNT" \) ; then
 	AC_MSG_CHECKING([for PSDK files])
 	if test -z "$with_psdk_home"; then
 		# This first line will detect a February 2003 Microsoft Platform SDK
-		PSDK_HOME=`./oowintool --psdk-home`
+		PSDK_HOME=`$OOWINTOOL --psdk-home`
         # But there might be also an April 2005 PSDK, unfortunately MS changed
         # the registry entry. (we prefer the old version!?)
         if test -z "$PSDK_HOME"; then
@@ -5443,7 +5538,7 @@ if test "$_os" = "WINNT" ; then
     if test -e "$with_nsis_path/nsis.exe"; then
         NSIS_PATH="$with_nsis_path"
     fi
-    nsistest=`./oowintool --nsis-dir`;
+    nsistest=`$OOWINTOOL --nsis-dir`;
     if test -x "$nsistest/nsis.exe"; then
         NSIS_PATH="$nsistest"
     fi
@@ -5719,7 +5814,7 @@ dnl ===================================================================
 dnl Windows builds - use oowintool to copy CRT dlls and manifest
 dnl ===================================================================
 if test "$_os" = "WINNT" -a "$WITH_MINGWIN" != "yes"; then
-       if ./oowintool --msvc-copy-dlls ./external/msvcp ; then
+       if $OOWINTOOL --msvc-copy-dlls ./external/msvcp ; then
           :
        else
           AC_MSG_ERROR([oowintool failed to copy CRT])
@@ -5886,7 +5981,7 @@ ENABLE_GSTREAMER=""
 if test "$test_gstreamer" = "yes"; then
     AC_MSG_CHECKING([whether to build the GStreamer media backend])
     if test "x$enable_gstreamer" != "xno" ; then
-        PKG_CHECK_MODULES( GSTREAMER, gtk+-2.0 >= 2.4 gthread-2.0 gstreamer-0.10 gstreamer-interfaces-0.10 ,,AC_MSG_ERROR([requirements to build the GStreamer media backend not met. Do not use --enable-gstreamer or install the missing packages]))
+        PKG_CHECK_MODULES( GSTREAMER, gtk+-2.0 >= 2.4 gthread-2.0 gstreamer-1.0 gstreamer-video-1.0,,AC_MSG_ERROR([requirements to build the GStreamer media backend not met. Do not use --enable-gstreamer or install the missing packages]))
         ENABLE_GSTREAMER="TRUE"
         AC_MSG_RESULT([yes])
     else

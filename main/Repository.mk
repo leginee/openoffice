@@ -27,8 +27,10 @@ $(eval $(call gb_Helper_register_repository,SRCDIR))
 $(eval $(call gb_Helper_register_executables,NONE, \
 	bmp \
 	bmpsum \
+	checksingleton \
 	g2g \
 	mkunroll \
+	rdbedit \
 	rdbmaker \
 	rscdep \
 	so_checksum \
@@ -40,6 +42,15 @@ $(eval $(call gb_Helper_register_executables,NONE, \
 
 $(eval $(call gb_Helper_register_executables,OOO, \
     spadmin.bin \
+))
+
+$(eval $(call gb_Helper_register_executables,SDK, \
+	regcompare \
+))
+
+$(eval $(call gb_Helper_register_executables,UREBIN, \
+	regmerge \
+	regview \
 ))
 
 $(eval $(call gb_Helper_register_libraries,OOOLIBS, \
@@ -101,7 +112,6 @@ $(eval $(call gb_Helper_register_libraries,OOOLIBS, \
 	oox \
 	package2 \
 	qstart_gtk \
-	reg \
 	rpt \
 	rptui \
 	rptxml \
@@ -174,13 +184,13 @@ $(eval $(call gb_Helper_register_libraries,RTLIBS, \
 	comphelper \
 	i18nisolang1 \
 	i18nutil \
-    jvmaccess \
 	ucbhelper \
 	vos3 \
 ))
 
 $(eval $(call gb_Helper_register_libraries,RTVERLIBS, \
 	cppuhelper \
+	jvmaccess \
 	salhelper \
 ))
 
@@ -232,7 +242,9 @@ $(eval $(call gb_Helper_register_libraries,UNOLIBS_OOO, \
 $(eval $(call gb_Helper_register_libraries,UNOVERLIBS, \
 	cppu \
 	jvmfwk \
+	reg \
 	sal \
+	store \
 ))
 
 $(eval $(call gb_Helper_register_static_libraries,PLAINLIBS, \

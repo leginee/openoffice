@@ -36,7 +36,6 @@
 # SOLARLIB
 # UPD
 
-# GXX_INCLUDE_PATH (Linux)
 # PTHREAD_CFLAGS (Linux)
 # SYSTEM_ICU (Linux)
 # SYSTEM_JPEG (Linux)
@@ -118,6 +117,8 @@ gb_FULLDEPS := $(false)
 else
 gb_FULLDEPS := $(true)
 endif
+
+gb_UDK_MAJOR := 3
 
 include $(GBUILDDIR)/Helper.mk
 include $(GBUILDDIR)/TargetLocations.mk

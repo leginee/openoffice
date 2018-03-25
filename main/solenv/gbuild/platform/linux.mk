@@ -53,15 +53,10 @@ gb_OSDEFS := \
 	-DUNX \
 	$(PTHREAD_CFLAGS) \
 
-ifeq ($(GXX_INCLUDE_PATH),)
-GXX_INCLUDE_PATH=$(COMPATH)/include/c++/$(shell gcc -dumpversion)
-endif
-
 gb_COMPILERDEFS := \
 	-D$(COM) \
 	-DHAVE_GCC_VISIBILITY_FEATURE \
-	-DCPPU_ENV=gcc3 \
-	-DGXX_INCLUDE_PATH=$(GXX_INCLUDE_PATH) \
+	-DCPPU_ENV=$(COMNAME) \
 
 ifeq ($(CPUNAME),X86_64)
 gb_CPUDEFS := -D$(CPUNAME)
@@ -158,8 +153,10 @@ endif
 
 ifeq ($(gb_DEBUGLEVEL),2)
 gb_COMPILEROPTFLAGS := -O0
+gb_COMPILEROPT1FLAGS := -O0
 else
 gb_COMPILEROPTFLAGS := -Os
+gb_COMPILEROPT1FLAGS := -O1
 endif
 
 gb_COMPILERNOOPTFLAGS := -O0
@@ -185,6 +182,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CC) \
 		$(DEFS) \
 		$(T_CFLAGS) \
+		$(CFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-MMD -MT $(1) \
@@ -210,6 +208,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CXX) \
 		$(DEFS) \
 		$(T_CXXFLAGS) \
+		$(CXXFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-MMD -MT $(1) \
@@ -246,6 +245,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CXX) \
 		$(if $(filter Library,$(TARGETTYPE)),$(gb_Library_TARGETTYPEFLAGS)) \
 		$(if $(VERSIONMAP),$(gb_Library_VERSIONMAPFLAG) $(VERSIONMAP)) \
+		$(if $(call gb_Library_is_udk_versioned,$(1)),-Wl$(COMMA)-h$(notdir $(1)).$(gb_UDK_MAJOR)) \
 		$(subst \d,$$,$(RPATH)) \
 		$(T_LDFLAGS) \
 		$(foreach object,$(COBJECTS),$(call gb_CObject_get_target,$(object))) \
@@ -256,7 +256,13 @@ $(call gb_Helper_abbreviate_dirs,\
 		$(patsubst %,-l%,$(EXTERNAL_LIBS)) \
 		$(LIBS) \
 		-lc \
-		-o $(1))
+		-o $(if $(call gb_Library_is_udk_versioned,$(1)),$(1).$(gb_UDK_MAJOR),$(1)))
+endef
+
+define gb_LinkTarget__command_symlink_udk_versioned_library
+	$(if $(call gb_Library_is_udk_versioned,$(1)),
+		$(call gb_Helper_abbreviate_dirs,\
+			rm -f $(1) && ln -s $(notdir $(1)).$(gb_UDK_MAJOR) $(1)))
 endef
 
 define gb_LinkTarget__command_staticlink
@@ -272,6 +278,7 @@ endef
 define gb_LinkTarget__command
 $(call gb_Output_announce,$(2),$(true),LNK,4)
 $(if $(filter Library GoogleTest Executable,$(TARGETTYPE)),$(call gb_LinkTarget__command_dynamiclink,$(1)))
+$(if $(filter Library,$(TARGETTYPE)),$(call gb_LinkTarget__command_symlink_udk_versioned_library,$(1)))
 $(if $(filter StaticLibrary,$(TARGETTYPE)),$(call gb_LinkTarget__command_staticlink,$(1)))
 endef
 
@@ -343,6 +350,11 @@ endef
 define gb_Library_Library_platform
 $(call gb_LinkTarget_get_target,$(2)) : RPATH := $(call gb_Library_get_rpath,$(1))
 
+ifneq (,$(call gb_Library_is_udk_versioned,$(call gb_Library_get_target,$(1))))
+$(call gb_Library_get_target,$(1)) \
+$(call gb_Library_get_clean_target,$(1)) : AUXTARGETS +=  \
+	$(call gb_Library_get_target,$(1)).$(gb_UDK_MAJOR)
+endif
 endef
 
 

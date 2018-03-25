@@ -21,42 +21,27 @@
 
 
 
-PRJ = ..
-PRJNAME = jvmaccess
-TARGET = $(PRJNAME)
+$(eval $(call gb_Executable_Executable,regmerge))
 
-ENABLE_EXCEPTIONS = TRUE
+$(eval $(call gb_Library_add_package_headers,regmerge,registry_inc))
 
-.IF "$(OS)" != "WNT" && "$(OS)" != "OS2"
-UNIXVERSIONNAMES = UDK
-.ENDIF # WNT
+$(eval $(call gb_Executable_set_include,regmerge,\
+	$$(INCLUDE) \
+	-I$(SRCDIR)/registry/inc/ \
+	-I$(SRCDIR)/registry/inc/pch \
+))
 
-.INCLUDE: settings.mk
+$(eval $(call gb_Executable_add_linked_libs,regmerge,\
+	reg \
+	sal \
+	stl \
+    $(gb_STDLIBS) \
+))
 
-.IF "$(UNIXVERSIONNAMES)" == ""
-SHL1TARGET = $(TARGET)$(UDK_MAJOR)$(COMID)
-.ELSE # UNIXVERSIONNAMES
-SHL1TARGET = $(TARGET)$(COMID)
-.ENDIF # UNIXVERSIONNAMES
+$(eval $(call gb_Executable_add_exception_objects,regmerge,\
+	registry/tools/regmerge \
+	registry/tools/fileurl \
+	registry/tools/options \
+))
 
-SHL1IMPLIB = i$(TARGET)
-SHL1LIBS = $(SLB)$/$(TARGET).lib
-SHL1STDLIBS = $(CPPULIB) $(SALLIB) $(SALHELPERLIB)
-.IF "$(OS)" == "WNT"
-SHL1STDLIBS += $(ADVAPI32LIB)
-.ENDIF # WNT
-SHL1RPATH = URELIB
-
-.IF "$(COMNAME)" == "msci"
-SHL1VERSIONMAP = msvc_win32_intel.map
-.ELIF "$(COMNAME)" == "sunpro5"
-SHL1VERSIONMAP = cc5_solaris_sparc.map
-.ELIF "$(GUI)$(COM)" == "WNTGCC"
-SHL1VERSIONMAP = mingw.map
-.ELIF "$(COMNAME)" == "gcc3"
-SHL1VERSIONMAP = gcc3.map
-.ENDIF
-
-DEF1NAME = $(SHL1TARGET)
-
-.INCLUDE: target.mk
+# vim: set noet sw=4 ts=4:

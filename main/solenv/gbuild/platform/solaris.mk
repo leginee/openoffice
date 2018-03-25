@@ -55,7 +55,7 @@ gb_OSDEFS := \
 
 gb_COMPILERDEFS := \
 	-D$(COM) \
-	-DCPPU_ENV=sunpro5 \
+	-DCPPU_ENV=$(COMNAME) \
 
 gb_CPUDEFS := -D$(CPUNAME)
 ifeq ($(CPUNAME),SPARC)
@@ -109,15 +109,18 @@ gb_DEBUG_CFLAGS := -g
 
 ifeq ($(gb_DEBUGLEVEL),2)
 gb_COMPILEROPTFLAGS :=
+gb_COMPILEROPT1FLAGS :=
 else
 ifeq ($(CPUNAME),INTEL)
 gb_COMPILEROPTFLAGS := -xarch=generic -xO3
+gb_COMPILEROPT1FLAGS := -xarch=generic -xO1
 else # ifeq ($(CPUNAME),SPARC)
 #  -m32 -xarch=sparc        restrict target to 32 bit sparc
 #  -xO3                     optimization level 3
 #  -xspace                  don't do optimizations which do increase binary size
 #  -xprefetch=yes           do prefetching (helps on UltraSparc III)
 gb_COMPILEROPTFLAGS := -m32 -xarch=sparc -xO3 -xspace -xprefetch=yes
+gb_COMPILEROPT1FLAGS := -m32 -xarch=sparc -xO1 -xspace -xprefetch=yes
 endif
 endif
 
@@ -156,6 +159,7 @@ $(call gb_Helper_abbreviate_dirs,\
 		-xMF $(4) \
 		$(DEFS) \
 		$(T_CFLAGS) \
+		$(CFLAGS) \
 		-I$(dir $(3)) \
 		$(INCLUDE))
 endef
@@ -170,6 +174,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CXX) \
 		$(DEFS) \
 		$(T_CXXFLAGS) \
+		$(CXXFLAGS) \
 		-c $(3) \
 		-o $(1) \
 		-xMMD \
@@ -206,6 +211,7 @@ $(call gb_Helper_abbreviate_dirs,\
 	$(gb_CXX) \
 		$(if $(filter Library,$(TARGETTYPE)),$(gb_Library_TARGETTYPEFLAGS)) \
 		$(if $(VERSIONMAP),$(gb_Library_VERSIONMAPFLAG) $(VERSIONMAP)) \
+		$(if $(call gb_Library_is_udk_versioned,$(1)),-Wl$(COMMA)-h$(notdir $(1)).$(gb_UDK_MAJOR)) \
 		$(subst \d,$$,$(RPATH)) \
 		$(T_LDFLAGS) \
 		$(foreach object,$(COBJECTS),$(call gb_CObject_get_target,$(object))) \
@@ -215,7 +221,13 @@ $(call gb_Helper_abbreviate_dirs,\
 		$(patsubst lib%.so,-l%,$(foreach lib,$(LINKED_LIBS),$(call gb_Library_get_filename,$(lib)))) \
 		$(patsubst %,-l%,$(EXTERNAL_LIBS)) \
 		$(LIBS) \
-		-o $(1))
+		-o $(if $(call gb_Library_is_udk_versioned,$(1)),$(1).$(gb_UDK_MAJOR),$(1)))
+endef
+
+define gb_LinkTarget__command_symlink_udk_versioned_library
+	$(if $(call gb_Library_is_udk_versioned,$(1)),
+		$(call gb_Helper_abbreviate_dirs,\
+			rm -f $(1) && ln -s $(notdir $(1)).$(gb_UDK_MAJOR) $(1)))
 endef
 
 define gb_LinkTarget__command_staticlink
@@ -231,6 +243,7 @@ endef
 define gb_LinkTarget__command
 $(call gb_Output_announce,$(2),$(true),LNK,4)
 $(if $(filter Library GoogleTest Executable,$(TARGETTYPE)),$(call gb_LinkTarget__command_dynamiclink,$(1)))
+$(if $(filter Library,$(TARGETTYPE)),$(call gb_LinkTarget__command_symlink_udk_versioned_library,$(1)))
 $(if $(filter StaticLibrary,$(TARGETTYPE)),$(call gb_LinkTarget__command_staticlink,$(1)))
 endef
 
@@ -305,6 +318,11 @@ endef
 define gb_Library_Library_platform
 $(call gb_LinkTarget_get_target,$(2)) : RPATH := $(call gb_Library_get_rpath,$(1))
 
+ifneq (,$(call gb_Library_is_udk_versioned,$(call gb_Library_get_target,$(1))))
+$(call gb_Library_get_target,$(1)) \
+$(call gb_Library_get_clean_target,$(1)) : AUXTARGETS +=  \
+	$(call gb_Library_get_target,$(1)).$(gb_UDK_MAJOR)
+endif
 endef
 
 

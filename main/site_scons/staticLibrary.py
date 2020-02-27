@@ -19,26 +19,21 @@
 #  
 #**************************************************************
 
+from SCons.Script import *
+from config import soenv
+from globals import *
 
+class AOOStaticLibrary:
+    def __init__(self, target, group, sharedObjects):
+        self.env = DefaultEnvironment().Clone()
+        self.staticLib = self.env.StaticLibrary(
+            target,
+            source = sharedObjects
+        )
+        self.env['AOO_THIS'] = self.sharedLib[0]
+        self.env.Append(LINKFLAGS=platform.getStaticLibraryLDFlags(soenv, DEBUGGING, DEBUGLEVEL))
+        self.env.Append(LIBPATH=platform.getLDPATH(soenv))
+        self.env['AOO_GROUP'] = group
 
-PRJ=..
-TARGET=prj
-
-.INCLUDE : settings.mk
-
-.IF "$(VERBOSE)"!=""
-VERBOSEFLAG :=
-.ELSE
-VERBOSEFLAG := -s
-.ENDIF
-
-.IF "$(DEBUG)"!=""
-DEBUG_ARGUMENT=DEBUG=$(DEBUG)
-.ELIF "$(debug)"!=""
-DEBUG_ARGUMENT=debug=$(debug)
-.ELSE
-DEBUG_ARGUMENT=
-.ENDIF
-
-all:
-	cd $(PRJ) && scons -u $(VERBOSEFLAG) -j$(MAXPROCESS) install
+    def InstallTo(self, path):
+        self.env.Install(path, self.staticLib)
